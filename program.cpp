@@ -7,8 +7,8 @@ int main()
 {
     open_window("Frost Hop", SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    level_data level = create_test_level();
-    player_data player = create_player(level.spawn);
+    game_data game;
+    init_game(game);
 
     timer frame_timer = create_timer("frame_timer");
     start_timer(frame_timer);
@@ -21,18 +21,11 @@ int main()
         reset_timer(frame_timer);
         if (dt > MAX_DT) dt = MAX_DT;
 
-        update_player(player, level, dt);
-        if (player.position.y > level.height * TILE_SIZE)
-            place_player(player, level.spawn);   // fell in the gap: try again
-
-        clear_screen(rgb_color(170, 210, 240));
-        draw_level(level);
-        draw_player(player);
-        draw_text("A/D or arrows: run    W/Up/Space: jump (hold for higher)", rgb_color(20, 30, 50), 10, 10);
-        draw_text("The 3-tile platform should be reachable. The 4-tile wall should not.", rgb_color(20, 30, 50), 10, 24);
+        update_game(game, dt);
+        draw_game(game);
         refresh_screen(60);
     }
 
-    free_level(level);
+    free_level(game.level);
     return 0;
 }

@@ -12,7 +12,7 @@ static double approach(double value, double target, double amount)
     return fmax(value - amount, target);
 }
 
-// Puts Pip at a spawn point, standing still
+// Puts Pip at a spawn point, standing still. Score and coins are kept.
 void place_player(player_data &player, point_2d spawn)
 {
     player.position = spawn;
@@ -24,9 +24,12 @@ void place_player(player_data &player, point_2d spawn)
     player.coyote_timer = 0;
 }
 
+// A fresh Pip for a new game
 player_data create_player(point_2d spawn)
 {
     player_data player;
+    player.coins = 0;
+    player.score = 0;
     place_player(player, spawn);
     return player;
 }
@@ -104,9 +107,9 @@ collision_info update_player(player_data &player, const level_data &level, doubl
     return info;
 }
 
-void draw_player(const player_data &player)
+void draw_player(const player_data &player, const camera_data &cam)
 {
-    double x = player.position.x;
+    double x = player.position.x - cam.x;
     double y = player.position.y;
 
     fill_rectangle(rgb_color(235, 130, 60), x, y, PLAYER_WIDTH, PLAYER_HEIGHT);

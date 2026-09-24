@@ -23,11 +23,15 @@ const double MAX_FALL_SPEED = 600;  // pixels per second
 const double RUN_SPEED = 220;
 const double RUN_ACCEL = 1400;
 const double RUN_DECEL = 1800;
-const double JUMP_SPEED = 640;      // a full jump rises about 3.5 tiles
+const double JUMP_SPEED = 640;      // a full jump rises about 3.4 tiles
 const double JUMP_CUT = 0.5;        // share of upward speed kept when jump is released early
 const double COYOTE_TIME = 0.1;     // seconds Pip can still jump after running off a ledge
 
-enum tile_kind { EMPTY, GROUND };
+// ---------- Scoring ----------
+const int COIN_POINTS = 100;
+const int FLAG_POINTS = 1000;
+
+enum tile_kind { EMPTY, GROUND, QUESTION, USED_BLOCK, COIN, FLAG };
 enum player_state { IDLE, RUNNING, JUMPING, FALLING, DEAD };
 
 struct player_data
@@ -39,6 +43,8 @@ struct player_data
     int facing;             // 1 = right, -1 = left
     bool jump_held;         // true while the jump button is still held after a jump
     double coyote_timer;
+    int coins;
+    int score;
 };
 
 // The block of grid cells a rectangle covers
@@ -49,7 +55,7 @@ struct tile_range
 
 struct level_data
 {
-    tile_kind *tiles;       // width * height tiles, allocated with new[]
+    tile_kind *tiles;       // width * height tiles, sized from the level file with new[]
     int width;
     int height;
     point_2d spawn;
@@ -58,6 +64,13 @@ struct level_data
     void set_tile(int col, int row, tile_kind kind);
     bool is_solid(int col, int row) const;
     bool solid_at(rectangle area) const;
+    bool touching(rectangle area, tile_kind kind) const;
+};
+
+// The camera only stores how far the view has scrolled right, in world pixels
+struct camera_data
+{
+    double x;
 };
 
 // What a move ran into
@@ -70,11 +83,20 @@ struct collision_info
     int ceiling_row;
 };
 
+struct game_data
+{
+    level_data level;
+    player_data player;
+    camera_data camera;
+    int level_number;
+};
+
 // level.cpp
 tile_range tiles_under(const rectangle &area);
-level_data create_test_level();
+level_data empty_level();
+level_data load_level(const string &filename);
 void free_level(level_data &level);
-void draw_level(const level_data &level);
+void draw_level(const level_data &level, const camera_data &cam);
 
 // physics.cpp
 bool overlaps(const rectangle &a, const rectangle &b);
@@ -88,6 +110,19 @@ rectangle player_box(const player_data &player);
 void handle_input(player_data &player, double dt);
 void apply_physics(player_data &player, double dt);
 collision_info update_player(player_data &player, const level_data &level, double dt);
-void draw_player(const player_data &player);
+void draw_player(const player_data &player, const camera_data &cam);
+
+// items.cpp
+void check_block_hits(player_data &player, level_data &level, const collision_info &info);
+void collect_pickups(player_data &player, level_data &level);
+
+// camera.cpp
+void update_camera(camera_data &cam, player_data &player, const level_data &level);
+
+// game.cpp
+void init_game(game_data &game);
+void load_current_level(game_data &game);
+void update_game(game_data &game, double dt);
+void draw_game(const game_data &game);
 
 #endif
