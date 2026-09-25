@@ -21,3 +21,9 @@ void update_camera(camera_data &cam, player_data &player, const level_data &leve
             player.velocity.x = 0;
     }
 }
+
+// Grumbles only update near the view, so ones far ahead wait for Pip to arrive
+bool in_active_range(double x, const camera_data &cam)
+{
+    return x + GRUMBLE_WIDTH > cam.x - ACTIVE_MARGIN && x < cam.x + SCREEN_WIDTH + ACTIVE_MARGIN;
+}

@@ -26,13 +26,25 @@ const double RUN_DECEL = 1800;
 const double JUMP_SPEED = 640;      // a full jump rises about 3.4 tiles
 const double JUMP_CUT = 0.5;        // share of upward speed kept when jump is released early
 const double COYOTE_TIME = 0.1;     // seconds Pip can still jump after running off a ledge
+const double STOMP_BOUNCE = 420;    // upward speed after landing on a Grumble
+const double DEATH_PAUSE = 1.0;     // seconds before the level restarts
+const int START_LIVES = 3;
+
+// ---------- Grumbles ----------
+const double GRUMBLE_WIDTH = 28;
+const double GRUMBLE_HEIGHT = 30;
+const double GRUMBLE_SPEED = 60;
+const double SQUASH_TIME = 0.4;     // how long a squashed Grumble stays on screen
+const double ACTIVE_MARGIN = 64;    // Grumbles this far outside the view still update
 
 // ---------- Scoring ----------
 const int COIN_POINTS = 100;
+const int STOMP_POINTS = 200;
 const int FLAG_POINTS = 1000;
 
-enum tile_kind { EMPTY, GROUND, QUESTION, USED_BLOCK, COIN, FLAG };
+enum tile_kind { EMPTY, GROUND, QUESTION, USED_BLOCK, COIN, SPIKE, FLAG };
 enum player_state { IDLE, RUNNING, JUMPING, FALLING, DEAD };
+enum enemy_state { WALKING, SQUASHED, GONE };
 
 struct player_data
 {
@@ -43,8 +55,18 @@ struct player_data
     int facing;             // 1 = right, -1 = left
     bool jump_held;         // true while the jump button is still held after a jump
     double coyote_timer;
+    int lives;
     int coins;
     int score;
+};
+
+struct enemy
+{
+    point_2d position;
+    vector_2d velocity;
+    enemy_state state;
+    int direction;          // 1 = right, -1 = left
+    double timer;           // time left in the current state (used while squashed)
 };
 
 // The block of grid cells a rectangle covers
@@ -56,6 +78,8 @@ struct tile_range
 struct level_data
 {
     tile_kind *tiles;       // width * height tiles, sized from the level file with new[]
+    enemy *enemies;         // one per 'g' in the file, sized with new[]
+    int enemy_count;
     int width;
     int height;
     point_2d spawn;
@@ -89,6 +113,7 @@ struct game_data
     player_data player;
     camera_data camera;
     int level_number;
+    double death_timer;
 };
 
 // level.cpp
@@ -110,6 +135,8 @@ rectangle player_box(const player_data &player);
 void handle_input(player_data &player, double dt);
 void apply_physics(player_data &player, double dt);
 collision_info update_player(player_data &player, const level_data &level, double dt);
+void damage_player(player_data &player);
+void kill_player(player_data &player);
 void draw_player(const player_data &player, const camera_data &cam);
 
 // items.cpp
@@ -118,9 +145,18 @@ void collect_pickups(player_data &player, level_data &level);
 
 // camera.cpp
 void update_camera(camera_data &cam, player_data &player, const level_data &level);
+bool in_active_range(double x, const camera_data &cam);
+
+// enemies.cpp
+enemy create_grumble(point_2d position);
+rectangle enemy_box(const enemy &grumble);
+void update_enemies(level_data &level, const camera_data &cam, double dt);
+void check_enemy_contact(player_data &player, level_data &level, double old_bottom);
+void draw_enemies(const level_data &level, const camera_data &cam);
 
 // game.cpp
 void init_game(game_data &game);
+void start_new_game(game_data &game);
 void load_current_level(game_data &game);
 void update_game(game_data &game, double dt);
 void draw_game(const game_data &game);

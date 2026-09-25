@@ -12,7 +12,7 @@ static double approach(double value, double target, double amount)
     return fmax(value - amount, target);
 }
 
-// Puts Pip at a spawn point, standing still. Score and coins are kept.
+// Puts Pip at a spawn point, standing still. Lives, score and coins are kept.
 void place_player(player_data &player, point_2d spawn)
 {
     player.position = spawn;
@@ -28,6 +28,7 @@ void place_player(player_data &player, point_2d spawn)
 player_data create_player(point_2d spawn)
 {
     player_data player;
+    player.lives = START_LIVES;
     player.coins = 0;
     player.score = 0;
     place_player(player, spawn);
@@ -92,10 +93,14 @@ static void update_state(player_data &player)
 
 collision_info update_player(player_data &player, const level_data &level, double dt)
 {
+    collision_info info = {false, false, false, -1, -1};
+    if (player.state == DEAD)
+        return info;
+
     handle_input(player, dt);
     apply_physics(player, dt);
 
-    collision_info info = move_and_collide(player.position, player.velocity,
+    info = move_and_collide(player.position, player.velocity,
                                            PLAYER_WIDTH, PLAYER_HEIGHT, level, dt);
     player.on_ground = info.on_ground;
     if (player.on_ground)
@@ -107,12 +112,25 @@ collision_info update_player(player_data &player, const level_data &level, doubl
     return info;
 }
 
+// For now every hit is fatal. Power states change this once the Frost Flower exists.
+void damage_player(player_data &player)
+{
+    kill_player(player);
+}
+
+void kill_player(player_data &player)
+{
+    player.state = DEAD;
+    player.velocity = vector_to(0, 0);
+}
+
 void draw_player(const player_data &player, const camera_data &cam)
 {
     double x = player.position.x - cam.x;
     double y = player.position.y;
 
-    fill_rectangle(rgb_color(235, 130, 60), x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
+    color body = player.state == DEAD ? rgb_color(150, 150, 150) : rgb_color(235, 130, 60);
+    fill_rectangle(body, x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
     fill_rectangle(rgb_color(90, 60, 40), x, y + PLAYER_HEIGHT - 5, PLAYER_WIDTH, 5);   // boots
 
     double eye_x = player.facing > 0 ? x + 14 : x + 4;

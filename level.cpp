@@ -32,7 +32,7 @@ bool level_data::is_solid(int col, int row) const
     if (row < 0 || row >= height)
         return false;   // open sky above, bottomless pits below
     tile_kind kind = tiles[row * width + col];
-    return kind == GROUND || kind == QUESTION || kind == USED_BLOCK;
+    return kind == GROUND || kind == QUESTION || kind == USED_BLOCK || kind == SPIKE;
 }
 
 bool level_data::solid_at(rectangle area) const
@@ -69,6 +69,8 @@ level_data empty_level()
 {
     level_data level;
     level.tiles = nullptr;
+    level.enemies = nullptr;
+    level.enemy_count = 0;
     level.width = 0;
     level.height = 0;
     level.spawn = point_at(TILE_SIZE, TILE_SIZE);
@@ -82,6 +84,7 @@ static level_data fallback_level()
     level.width = SCREEN_WIDTH / TILE_SIZE;
     level.height = SCREEN_HEIGHT / TILE_SIZE;
     level.tiles = new tile_kind[level.width * level.height];
+    level.enemies = new enemy[0];
     for (int i = 0; i < level.width * level.height; i++)
         level.tiles[i] = i / level.width >= level.height - 2 ? GROUND : EMPTY;
     level.spawn = point_at(2 * TILE_SIZE, (level.height - 2) * TILE_SIZE - PLAYER_HEIGHT);
@@ -102,6 +105,12 @@ static void read_cell(level_data &level, char c, int col, int row)
         case '?': level.tiles[i] = QUESTION; break;
         case 'o': level.tiles[i] = COIN; break;
         case 'F': level.tiles[i] = FLAG; break;
+        case '^': level.tiles[i] = SPIKE; break;
+        case 'g':
+            level.enemies[level.enemy_count] =
+                create_grumble(point_at(x + (TILE_SIZE - GRUMBLE_WIDTH) / 2, y + TILE_SIZE - GRUMBLE_HEIGHT));
+            level.enemy_count++;
+            break;
         case 'P':
             level.spawn = point_at(x + (TILE_SIZE - PLAYER_WIDTH) / 2, y + TILE_SIZE - PLAYER_HEIGHT);
             break;
@@ -112,7 +121,8 @@ static void read_cell(level_data &level, char c, int col, int row)
     }
 }
 
-// Reads the file twice: once to measure it so the grid can be sized exactly, once to fill it
+// Reads the file twice: once to measure it and count Grumbles so the arrays can be sized
+// exactly, once to fill them
 level_data load_level(const string &filename)
 {
     ifstream file(filename);
@@ -123,15 +133,19 @@ level_data load_level(const string &filename)
     }
 
     level_data level = empty_level();
+    int grumbles = 0;
     string line;
     while (getline(file, line))
     {
         if ((int)line.length() > level.width)
             level.width = line.length();
+        for (char c : line)
+            if (c == 'g') grumbles++;
         level.height++;
     }
 
     level.tiles = new tile_kind[level.width * level.height];
+    level.enemies = new enemy[grumbles];   // enemy_count climbs back to this as they are read
 
     file.clear();
     file.seekg(0);
@@ -148,7 +162,12 @@ level_data load_level(const string &filename)
 void free_level(level_data &level)
 {
     delete[] level.tiles;
+    delete[] level.enemies;
     level.tiles = nullptr;
+    level.enemies = nullptr;
+    level.enemy_count = 0;
+    level.enemies = nullptr;
+    level.enemy_count = 0;
     level.width = 0;
     level.height = 0;
 }
@@ -178,6 +197,11 @@ static void draw_tile(const level_data &level, int col, int row, double x, doubl
         case COIN:
             fill_circle(rgb_color(250, 205, 40), x + 16, y + 16, 8);
             fill_circle(rgb_color(255, 240, 150), x + 13, y + 13, 3);
+            break;
+        case SPIKE:
+            for (int i = 0; i < 2; i++)
+                fill_triangle(rgb_color(150, 155, 170), x + i * 16, y + TILE_SIZE,
+                              x + i * 16 + 8, y + 6, x + i * 16 + 16, y + TILE_SIZE);
             break;
         case FLAG:
             fill_rectangle(rgb_color(90, 90, 90), x + 14, y, 4, TILE_SIZE);
