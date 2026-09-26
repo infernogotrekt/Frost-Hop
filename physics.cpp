@@ -12,11 +12,11 @@ bool overlaps(const rectangle &a, const rectangle &b)
 
 // Moves one step of at most one pixel along one axis. Returns false if the step was blocked.
 static bool try_step(double &coord, double step, point_2d &position, double width, double height,
-                     const level_data &level)
+                     const level_data &level, int ignore_enemy)
 {
     double old_value = coord;
     coord += step;
-    if (level.solid_at(rectangle_from(position.x, position.y, width, height)))
+    if (level.solid_at(rectangle_from(position.x, position.y, width, height), ignore_enemy))
     {
         coord = old_value;
         return false;
@@ -25,9 +25,10 @@ static bool try_step(double &coord, double step, point_2d &position, double widt
 }
 
 // Moves a box by its velocity, x first and then y, one pixel at a time so it never
-// skips through a tile. Reports what it hit.
+// skips through a tile. Reports what it hit. A frozen Grumble passes its own index as
+// ignore_enemy so it does not collide with itself.
 collision_info move_and_collide(point_2d &position, vector_2d &velocity, double width, double height,
-                                const level_data &level, double dt)
+                                const level_data &level, double dt, int ignore_enemy)
 {
     collision_info info = {false, false, false, -1, -1};
 
@@ -35,7 +36,7 @@ collision_info move_and_collide(point_2d &position, vector_2d &velocity, double 
     while (remaining != 0)
     {
         double step = fmax(-1.0, fmin(1.0, remaining));
-        if (!try_step(position.x, step, position, width, height, level))
+        if (!try_step(position.x, step, position, width, height, level, ignore_enemy))
         {
             info.hit_wall = true;
             velocity.x = 0;
@@ -48,7 +49,7 @@ collision_info move_and_collide(point_2d &position, vector_2d &velocity, double 
     while (remaining != 0)
     {
         double step = fmax(-1.0, fmin(1.0, remaining));
-        if (!try_step(position.y, step, position, width, height, level))
+        if (!try_step(position.y, step, position, width, height, level, ignore_enemy))
         {
             if (step > 0)
                 info.on_ground = true;

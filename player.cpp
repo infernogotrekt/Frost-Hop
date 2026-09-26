@@ -12,7 +12,7 @@ static double approach(double value, double target, double amount)
     return fmax(value - amount, target);
 }
 
-// Puts Pip at a spawn point, standing still. Lives, score and coins are kept.
+// Puts Pip at a spawn point, standing still. Power, lives, score and coins are kept.
 void place_player(player_data &player, point_2d spawn)
 {
     player.position = spawn;
@@ -22,12 +22,14 @@ void place_player(player_data &player, point_2d spawn)
     player.facing = 1;
     player.jump_held = false;
     player.coyote_timer = 0;
+    player.invincible_timer = 0;
 }
 
 // A fresh Pip for a new game
 player_data create_player(point_2d spawn)
 {
     player_data player;
+    player.power = SMALL;
     player.lives = START_LIVES;
     player.coins = 0;
     player.score = 0;
@@ -40,7 +42,7 @@ rectangle player_box(const player_data &player)
     return rectangle_from(player.position.x, player.position.y, PLAYER_WIDTH, PLAYER_HEIGHT);
 }
 
-void handle_input(player_data &player, double dt)
+void handle_input(player_data &player, snowball_pool &snowballs, double dt)
 {
     int direction = 0;
     if (key_down(A_KEY) || key_down(LEFT_KEY)) direction--;
@@ -72,6 +74,13 @@ void handle_input(player_data &player, double dt)
         if (player.velocity.y < 0)
             player.velocity.y *= JUMP_CUT;
     }
+
+    // With the Frost Flower, J throws a snowball from Pip's front
+    if (key_typed(J_KEY) && player.power == FROST)
+    {
+        double x = player.facing > 0 ? player.position.x + PLAYER_WIDTH : player.position.x - SNOWBALL_SIZE;
+        snowballs.throw_from(point_at(x, player.position.y + 8), player.facing);
+    }
 }
 
 void apply_physics(player_data &player, double dt)
@@ -91,13 +100,13 @@ static void update_state(player_data &player)
         player.state = IDLE;
 }
 
-collision_info update_player(player_data &player, const level_data &level, double dt)
+collision_info update_player(player_data &player, const level_data &level, snowball_pool &snowballs, double dt)
 {
     collision_info info = {false, false, false, -1, -1};
     if (player.state == DEAD)
         return info;
 
-    handle_input(player, dt);
+    handle_input(player, snowballs, dt);
     apply_physics(player, dt);
 
     info = move_and_collide(player.position, player.velocity,
@@ -107,15 +116,23 @@ collision_info update_player(player_data &player, const level_data &level, doubl
         player.coyote_timer = COYOTE_TIME;
     else
         player.coyote_timer -= dt;
+    if (player.invincible_timer > 0)
+        player.invincible_timer -= dt;
 
     update_state(player);
     return info;
 }
 
-// For now every hit is fatal. Power states change this once the Frost Flower exists.
+// A hit with the Frost Flower costs the power. A hit without it costs a life.
 void damage_player(player_data &player)
 {
-    kill_player(player);
+    if (player.power == FROST)
+    {
+        player.power = SMALL;
+        player.invincible_timer = INVINCIBLE_TIME;
+    }
+    else
+        kill_player(player);
 }
 
 void kill_player(player_data &player)
@@ -126,6 +143,9 @@ void kill_player(player_data &player)
 
 void draw_player(const player_data &player, const camera_data &cam)
 {
+    if (player.invincible_timer > 0 && fmod(player.invincible_timer, 0.2) < 0.1)
+        return;   // flashing after a hit
+
     double x = player.position.x - cam.x;
     double y = player.position.y;
 
@@ -137,4 +157,11 @@ void draw_player(const player_data &player, const camera_data &cam)
     double pupil_x = player.facing > 0 ? eye_x + 3 : eye_x;
     fill_rectangle(rgb_color(255, 255, 255), eye_x, y + 6, 6, 7);
     fill_rectangle(rgb_color(20, 20, 20), pupil_x, y + 8, 3, 4);
+
+    if (player.power == FROST)   // blue scarf, tail blowing behind
+    {
+        color scarf = rgb_color(60, 130, 230);
+        fill_rectangle(scarf, x - 1, y + 15, PLAYER_WIDTH + 2, 5);
+        fill_rectangle(scarf, player.facing > 0 ? x - 7 : x + PLAYER_WIDTH + 1, y + 15, 6, 9);
+    }
 }

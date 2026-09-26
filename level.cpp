@@ -35,13 +35,19 @@ bool level_data::is_solid(int col, int row) const
     return kind == GROUND || kind == QUESTION || kind == USED_BLOCK || kind == SPIKE;
 }
 
-bool level_data::solid_at(rectangle area) const
+// The shared collision rule: solid tiles, plus every frozen Grumble.
+// Pip, walking Grumbles, falling ice blocks and snowballs all ask this one question.
+bool level_data::solid_at(rectangle area, int ignore_enemy) const
 {
     tile_range range = tiles_under(area);
     for (int row = range.top; row <= range.bottom; row++)
         for (int col = range.left; col <= range.right; col++)
             if (is_solid(col, row))
                 return true;
+
+    for (int i = 0; i < enemy_count; i++)
+        if (i != ignore_enemy && enemies[i].state == FROZEN && overlaps(area, enemy_box(enemies[i])))
+            return true;
     return false;
 }
 
@@ -69,6 +75,7 @@ level_data empty_level()
 {
     level_data level;
     level.tiles = nullptr;
+    level.has_flower = nullptr;
     level.enemies = nullptr;
     level.enemy_count = 0;
     level.width = 0;
@@ -84,9 +91,13 @@ static level_data fallback_level()
     level.width = SCREEN_WIDTH / TILE_SIZE;
     level.height = SCREEN_HEIGHT / TILE_SIZE;
     level.tiles = new tile_kind[level.width * level.height];
+    level.has_flower = new bool[level.width * level.height];
     level.enemies = new enemy[0];
     for (int i = 0; i < level.width * level.height; i++)
+    {
         level.tiles[i] = i / level.width >= level.height - 2 ? GROUND : EMPTY;
+        level.has_flower[i] = false;
+    }
     level.spawn = point_at(2 * TILE_SIZE, (level.height - 2) * TILE_SIZE - PLAYER_HEIGHT);
     return level;
 }
@@ -99,10 +110,12 @@ static void read_cell(level_data &level, char c, int col, int row)
     double y = row * TILE_SIZE;
 
     level.tiles[i] = EMPTY;
+    level.has_flower[i] = false;
     switch (c)
     {
         case '#': level.tiles[i] = GROUND; break;
         case '?': level.tiles[i] = QUESTION; break;
+        case 'f': level.tiles[i] = QUESTION; level.has_flower[i] = true; break;
         case 'o': level.tiles[i] = COIN; break;
         case 'F': level.tiles[i] = FLAG; break;
         case '^': level.tiles[i] = SPIKE; break;
@@ -145,6 +158,7 @@ level_data load_level(const string &filename)
     }
 
     level.tiles = new tile_kind[level.width * level.height];
+    level.has_flower = new bool[level.width * level.height];
     level.enemies = new enemy[grumbles];   // enemy_count climbs back to this as they are read
 
     file.clear();
@@ -162,8 +176,10 @@ level_data load_level(const string &filename)
 void free_level(level_data &level)
 {
     delete[] level.tiles;
+    delete[] level.has_flower;
     delete[] level.enemies;
     level.tiles = nullptr;
+    level.has_flower = nullptr;
     level.enemies = nullptr;
     level.enemy_count = 0;
     level.enemies = nullptr;
@@ -210,6 +226,13 @@ static void draw_tile(const level_data &level, int col, int row, double x, doubl
                 fill_triangle(rgb_color(40, 170, 90), x + 18, y + 2, x + 18, y + 22, x + 42, y + 12);
                 fill_circle(rgb_color(250, 205, 40), x + 16, y, 4);
             }
+            break;
+        case FLOWER:
+            fill_rectangle(rgb_color(60, 150, 70), x + 15, y + 16, 3, 16);        // stem
+            for (int i = 0; i < 4; i++)                                            // petals
+                fill_circle(rgb_color(130, 200, 255), x + 16 + (i % 2 == 0 ? (i - 1) * 7 : 0),
+                            y + 12 + (i % 2 == 1 ? (i - 2) * 7 : 0), 5);
+            fill_circle(rgb_color(255, 255, 255), x + 16, y + 12, 4);
             break;
         default:
             break;
