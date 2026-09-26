@@ -3,18 +3,6 @@
 SIT102 Introduction to Programming project. A side-scrolling platformer built
 with C++ and SplashKit, where freezing enemies turns them into platforms.
 
-## Status
-
-All four build days are done. Each one is tagged, so `git checkout day-2`
-(for example) shows the game as it stood at the end of that day.
-
-- [x] Concept exploration (three ideas, one chosen)
-- [x] Project plan
-- [x] Day 1: movement, jumping, landing (tag `day-1`)
-- [x] Day 2: levels from files, camera, coins, question blocks, flag (tag `day-2`)
-- [x] Day 3: Grumbles, stomping, damage, lives, pits, spikes (tag `day-3`)
-- [x] Day 4: Frost Flower, snowballs, freezing, screens, level tuning (tag `day-4`)
-
 ## The idea
 
 Pip, a small explorer, runs through three snowy levels. Grumbles are walking
@@ -39,14 +27,10 @@ Needs SplashKit and the `skm` tool. From the repository root:
     skm g++ src/*.cpp -o bin/frost_hop
     ./bin/frost_hop
 
-Run it from the repository root, because the game loads `levels/level1.txt`
-and the others by relative path.
+Run it from the repository root, because the game loads `levels/level1.txt` and the others by relative path.
 
 ## Repository layout
 
-    docs/brief.md         the assignment brief
-    docs/design-plan.md   the project plan
-    docs/concepts/        earlier concepts, kept for the report
     src/frost_hop.h       constants, enums, structs and declarations
     src/program.cpp       window and game loop
     src/game.cpp          screen state machine, level flow, HUD
